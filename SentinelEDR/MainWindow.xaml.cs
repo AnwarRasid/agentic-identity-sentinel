@@ -581,19 +581,19 @@ namespace SentinelEDR
 
             // Realistic Event 4625 XML — this mirrors the actual schema that
             // Windows writes to the Security log on a failed logon attempt.
-            string fakeEventXml = $"""
+            string fakeEventXml = $$"""
                 <Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'>
                   <System>
-                    <Provider Name='Microsoft-Windows-Security-Auditing' Guid='{{54849625-5478-4994-A5BA-3E3B0328C30D}}'/>
+                    <Provider Name='Microsoft-Windows-Security-Auditing' Guid='{54849625-5478-4994-A5BA-3E3B0328C30D}'/>
                     <EventID>4625</EventID>
                     <Version>0</Version>
                     <Level>0</Level>
                     <Task>12544</Task>
                     <Opcode>0</Opcode>
                     <Keywords>0x8010000000000000</Keywords>
-                    <TimeCreated SystemTime='{DateTime.UtcNow:yyyy-MM-ddTHH:mm:ss.fffffffZ}'/>
+                    <TimeCreated SystemTime='{{DateTime.UtcNow:yyyy-MM-ddTHH:mm:ss.fffffffZ}}'/>
                     <EventRecordID>884231</EventRecordID>
-                    <Correlation ActivityID='{{00000000-0000-0000-0000-000000000000}}'/>
+                    <Correlation ActivityID='{00000000-0000-0000-0000-000000000000}'/>
                     <Execution ProcessID='612' ThreadID='1832'/>
                     <Channel>Security</Channel>
                     <Computer>WORKSTATION-07.corp.local</Computer>
