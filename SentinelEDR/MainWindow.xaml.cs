@@ -52,11 +52,11 @@ namespace SentinelEDR
         private const string API_KEY = "YOUR_KEY_HERE";
 
         /// <summary>
-        /// Gemini 2.0 Flash endpoint.  The :generateContent suffix and key
+        /// Gemini 3.0 Flash endpoint.  The :generateContent suffix and key
         /// are appended at call time.
         /// </summary>
         private const string GEMINI_ENDPOINT =
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash";
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.0-flash";
 
         /// <summary>
         /// XPath query that selects only Event ID 4625 (Failed Logon) from
