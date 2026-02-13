@@ -153,6 +153,81 @@
             </Setter>
         </Style>
 
+        <!-- Toggle-switch style for CheckBox (cyberpunk neon) -->
+        <Style x:Key="NeonToggle" TargetType="CheckBox">
+            <Setter Property="Foreground"  Value="{StaticResource NeonAmber}"/>
+            <Setter Property="FontFamily"  Value="Cascadia Code, Consolas"/>
+            <Setter Property="FontSize"    Value="12"/>
+            <Setter Property="Cursor"      Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <StackPanel Orientation="Horizontal">
+                            <Border x:Name="ToggleTrack"
+                                    Width="44" Height="22" CornerRadius="11"
+                                    Background="#FF2A2A4A"
+                                    BorderBrush="{StaticResource TextDim}"
+                                    BorderThickness="1.5">
+                                <Ellipse x:Name="ToggleThumb"
+                                         Width="16" Height="16"
+                                         Fill="{StaticResource TextDim}"
+                                         HorizontalAlignment="Left"
+                                         Margin="2,0,0,0"/>
+                            </Border>
+                            <ContentPresenter Margin="10,0,0,0"
+                                              VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="ToggleTrack" Property="Background"   Value="#FF1A3A1A"/>
+                                <Setter TargetName="ToggleTrack" Property="BorderBrush"  Value="{StaticResource NeonGreen}"/>
+                                <Setter TargetName="ToggleThumb" Property="Fill"          Value="{StaticResource NeonGreen}"/>
+                                <Setter TargetName="ToggleThumb" Property="HorizontalAlignment" Value="Right"/>
+                                <Setter TargetName="ToggleThumb" Property="Margin"        Value="0,0,2,0"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ToggleTrack" Property="BorderBrush"  Value="{StaticResource NeonAmber}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Amber accent button variant (for countermeasure actions) -->
+        <Style x:Key="NeonButtonAmber" TargetType="Button" BasedOn="{StaticResource NeonButton}">
+            <Setter Property="Foreground"  Value="{StaticResource NeonAmber}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource NeonAmber}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#FFFFA500"/>
+                                <Setter Property="Foreground" Value="#FF0D0D0D"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#FFCC8400"/>
+                                <Setter Property="Foreground" Value="#FF0D0D0D"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
     </Window.Resources>
 
     <!-- ================================================================
@@ -220,85 +295,182 @@
         </Border>
 
         <!-- ============================================================
-             ROW 1 — LIVE EVENT FEED
+             ROW 1 — LIVE EVENT FEED + COUNTERMEASURES SIDEBAR
              ============================================================ -->
-        <Border Grid.Row="1"
-                Background="{StaticResource BgCard}"
-                BorderBrush="#FF2A2A4A"
-                BorderThickness="0,0,0,1"
-                Margin="16,12,16,4">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
+        <Grid Grid.Row="1" Margin="16,12,16,4">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>        <!-- Live feed -->
+                <ColumnDefinition Width="230"/>      <!-- Countermeasures sidebar -->
+            </Grid.ColumnDefinitions>
 
-                <!-- Feed header -->
-                <Border Grid.Row="0"
-                        Background="#FF0F3460"
-                        Padding="14,8">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0"
-                                   Text="LIVE EVENT FEED"
+            <!-- ── Left: Live Event Feed ────────────────────────────── -->
+            <Border Grid.Column="0"
+                    Background="{StaticResource BgCard}"
+                    BorderBrush="#FF2A2A4A"
+                    BorderThickness="0,0,0,1"
+                    Margin="0,0,8,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Feed header -->
+                    <Border Grid.Row="0"
+                            Background="#FF0F3460"
+                            Padding="14,8">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0"
+                                       Text="LIVE EVENT FEED"
+                                       FontSize="11" FontWeight="Bold"
+                                       Foreground="{StaticResource NeonCyan}"
+                                       VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1"
+                                       x:Name="EventCountText"
+                                       Text="0 events"
+                                       FontSize="11"
+                                       Foreground="{StaticResource TextDim}"
+                                       VerticalAlignment="Center"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- The ListBox acting as the live log feed -->
+                    <ListBox Grid.Row="1"
+                             x:Name="EventFeedList"
+                             Background="Transparent"
+                             Foreground="{StaticResource NeonGreen}"
+                             BorderThickness="0"
+                             FontFamily="Cascadia Code, Consolas, Courier New"
+                             FontSize="12.5"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto"
+                             VirtualizingPanel.IsVirtualizing="True"
+                             VirtualizingPanel.VirtualizationMode="Recycling">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="Foreground" Value="{StaticResource NeonGreen}"/>
+                                <Setter Property="Padding"    Value="12,6"/>
+                                <Setter Property="BorderBrush" Value="#FF2A2A4A"/>
+                                <Setter Property="BorderThickness" Value="0,0,0,0.5"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListBoxItem">
+                                            <Border x:Name="Bd"
+                                                    Background="Transparent"
+                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                                    Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="Bd"
+                                                            Property="Background"
+                                                            Value="#1539FF14"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                    </ListBox>
+                </Grid>
+            </Border>
+
+            <!-- ── Right: Countermeasures Sidebar ───────────────────── -->
+            <Border Grid.Column="1"
+                    Background="{StaticResource BgCard}"
+                    BorderBrush="{StaticResource NeonAmber}"
+                    BorderThickness="1"
+                    CornerRadius="4">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Sidebar header -->
+                    <Border Grid.Row="0"
+                            Background="#FF3A2A0A"
+                            Padding="14,10"
+                            CornerRadius="4,4,0,0">
+                        <TextBlock Text="COUNTERMEASURES"
                                    FontSize="11" FontWeight="Bold"
-                                   Foreground="{StaticResource NeonCyan}"
-                                   VerticalAlignment="Center"/>
-                        <TextBlock Grid.Column="1"
-                                   x:Name="EventCountText"
-                                   Text="0 events"
-                                   FontSize="11"
-                                   Foreground="{StaticResource TextDim}"
-                                   VerticalAlignment="Center"/>
-                    </Grid>
-                </Border>
+                                   Foreground="{StaticResource NeonAmber}"/>
+                    </Border>
 
-                <!-- The ListBox acting as the live log feed -->
-                <ListBox Grid.Row="1"
-                         x:Name="EventFeedList"
-                         Background="Transparent"
-                         Foreground="{StaticResource NeonGreen}"
-                         BorderThickness="0"
-                         FontFamily="Cascadia Code, Consolas, Courier New"
-                         FontSize="12.5"
-                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                         ScrollViewer.VerticalScrollBarVisibility="Auto"
-                         VirtualizingPanel.IsVirtualizing="True"
-                         VirtualizingPanel.VirtualizationMode="Recycling">
-                    <ListBox.ItemContainerStyle>
-                        <Style TargetType="ListBoxItem">
-                            <Setter Property="Foreground" Value="{StaticResource NeonGreen}"/>
-                            <Setter Property="Padding"    Value="12,6"/>
-                            <Setter Property="BorderBrush" Value="#FF2A2A4A"/>
-                            <Setter Property="BorderThickness" Value="0,0,0,0.5"/>
-                            <Setter Property="Template">
-                                <Setter.Value>
-                                    <ControlTemplate TargetType="ListBoxItem">
-                                        <Border x:Name="Bd"
-                                                Background="Transparent"
-                                                BorderBrush="{TemplateBinding BorderBrush}"
-                                                BorderThickness="{TemplateBinding BorderThickness}"
-                                                Padding="{TemplateBinding Padding}">
-                                            <ContentPresenter/>
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="Bd"
-                                                        Property="Background"
-                                                        Value="#1539FF14"/>
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Setter.Value>
-                            </Setter>
-                        </Style>
-                    </ListBox.ItemContainerStyle>
-                </ListBox>
-            </Grid>
-        </Border>
+                    <!-- Sidebar controls -->
+                    <StackPanel Grid.Row="1" Margin="14,16,14,14">
+
+                        <!-- Auto-Eradicate toggle -->
+                        <TextBlock Text="ACTIVE DEFENSE"
+                                   FontSize="10" FontWeight="Bold"
+                                   Foreground="{StaticResource TextDim}"
+                                   Margin="0,0,0,8"/>
+
+                        <CheckBox x:Name="ChkAutoEradicate"
+                                  Content="Auto-Eradicate"
+                                  Style="{StaticResource NeonToggle}"
+                                  Checked="ChkAutoEradicate_Changed"
+                                  Unchecked="ChkAutoEradicate_Changed"
+                                  Margin="0,0,0,6"/>
+
+                        <TextBlock Text="When ON, CRITICAL threats are automatically blocked in Windows Firewall."
+                                   FontSize="10"
+                                   Foreground="{StaticResource TextDim}"
+                                   TextWrapping="Wrap"
+                                   Margin="0,0,0,20"/>
+
+                        <!-- Separator -->
+                        <Border Height="1"
+                                Background="#FF2A2A4A"
+                                Margin="0,0,0,16"/>
+
+                        <!-- Manual block button -->
+                        <TextBlock Text="MANUAL ACTIONS"
+                                   FontSize="10" FontWeight="Bold"
+                                   Foreground="{StaticResource TextDim}"
+                                   Margin="0,0,0,8"/>
+
+                        <Button x:Name="BtnBlockIp"
+                                Content="Block Selected IP"
+                                Style="{StaticResource NeonButtonAmber}"
+                                Click="BtnBlockIp_Click"
+                                IsEnabled="False"
+                                Padding="12,10"
+                                Margin="0,0,0,8"/>
+
+                        <!-- Last detected IP display -->
+                        <TextBlock x:Name="TxtLastDetectedIp"
+                                   Text="No IP flagged yet"
+                                   FontSize="10"
+                                   Foreground="{StaticResource TextDim}"
+                                   TextWrapping="Wrap"
+                                   Margin="0,0,0,20"/>
+
+                        <!-- Separator -->
+                        <Border Height="1"
+                                Background="#FF2A2A4A"
+                                Margin="0,0,0,16"/>
+
+                        <!-- Blocked count -->
+                        <TextBlock Text="STATS"
+                                   FontSize="10" FontWeight="Bold"
+                                   Foreground="{StaticResource TextDim}"
+                                   Margin="0,0,0,6"/>
+                        <TextBlock x:Name="TxtBlockedCount"
+                                   Text="0 IPs blocked"
+                                   FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{StaticResource NeonAmber}"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
 
         <!-- ============================================================
              ROW 2 — CONTROL BUTTONS
