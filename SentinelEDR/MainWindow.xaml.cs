@@ -557,34 +557,10 @@ namespace SentinelEDR
         ///
         /// In production, this would be a real HTTP call to a TI provider.
         /// Here we return deterministic mock data for demonstration.
-        ///
-        /// The database covers all IPs used by the Red Team Engine scenarios
-        /// plus automatic RFC-1918 private IP range detection.
         /// </summary>
         private static string CheckIpReputation(string ip)
         {
-            // ── RFC-1918 / private range detection ──────────────────────
-            // Any private IP is automatically clean — the AI should learn
-            // to treat internal traffic differently from external.
-            if (ip.StartsWith("192.168.") || ip.StartsWith("10.") ||
-                ip.StartsWith("172.16.") || ip.StartsWith("172.17.") ||
-                ip.StartsWith("172.18.") || ip.StartsWith("172.19.") ||
-                ip.StartsWith("172.2") || ip.StartsWith("172.30.") ||
-                ip.StartsWith("172.31.") || ip == "127.0.0.1")
-            {
-                return JsonSerializer.Serialize(new
-                {
-                    ip,
-                    reputation = "clean",
-                    country = "INTERNAL",
-                    threat_type = "none",
-                    confidence = 100,
-                    last_seen = "N/A",
-                    note = "RFC-1918 private address — internal network traffic"
-                });
-            }
-
-            // ── Mock threat-intel database ──────────────────────────────
+            // Mock threat-intel database
             var threatIntelDb = new Dictionary<string, object>
             {
                 ["203.0.113.50"] = new
@@ -605,41 +581,14 @@ namespace SentinelEDR
                     confidence = 88,
                     last_seen = "2026-02-11"
                 },
-                ["45.155.205.99"] = new
+                ["192.168.1.100"] = new
                 {
-                    ip = "45.155.205.99",
-                    reputation = "malicious",
-                    country = "KP",
-                    threat_type = "apt_c2_beacon",
-                    confidence = 95,
-                    last_seen = "2026-02-13"
-                },
-                ["185.220.101.34"] = new
-                {
-                    ip = "185.220.101.34",
-                    reputation = "malicious",
-                    country = "RU",
-                    threat_type = "tor_exit_relay",
-                    confidence = 90,
-                    last_seen = "2026-02-14"
-                },
-                ["91.240.118.172"] = new
-                {
-                    ip = "91.240.118.172",
-                    reputation = "malicious",
-                    country = "IR",
-                    threat_type = "scanning_recon",
-                    confidence = 85,
-                    last_seen = "2026-02-10"
-                },
-                ["23.129.64.210"] = new
-                {
-                    ip = "23.129.64.210",
-                    reputation = "malicious",
-                    country = "US",
-                    threat_type = "tor_exit_node",
-                    confidence = 82,
-                    last_seen = "2026-02-13"
+                    ip = "192.168.1.100",
+                    reputation = "clean",
+                    country = "INTERNAL",
+                    threat_type = "none",
+                    confidence = 100,
+                    last_seen = "N/A"
                 }
             };
 
@@ -665,23 +614,66 @@ namespace SentinelEDR
         // ==================================================================
 
         /// <summary>
-        /// Uses the Polymorphic Red Team Engine to generate a random attack
-        /// scenario and runs it through the full agentic AI pipeline.
-        /// Each click may produce a brute force, impossible travel,
-        /// PowerShell attack, or a false-positive event — the AI must
-        /// reason about each one independently.
+        /// Generates a realistic-looking (but fake) Windows Security Event
+        /// 4625 XML payload and runs it through the agentic AI pipeline.
+        /// This lets you test the full agent loop without needing to actually
+        /// trigger a failed logon on the machine.
         /// </summary>
         private async Task SimulateAttackAsync()
         {
-            AddLogEntry("SIMULATE", "Red Team Engine spinning up — selecting random scenario...", false);
+            AddLogEntry("SIMULATE", "Injecting simulated failed-logon event (Event 4625)...", false);
 
-            var scenario = RedTeamSimulator.GenerateAttackScenario();
+            // Realistic Event 4625 XML — this mirrors the actual schema that
+            // Windows writes to the Security log on a failed logon attempt.
+            string fakeEventXml = $$"""
+                <Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'>
+                  <System>
+                    <Provider Name='Microsoft-Windows-Security-Auditing' Guid='{54849625-5478-4994-A5BA-3E3B0328C30D}'/>
+                    <EventID>4625</EventID>
+                    <Version>0</Version>
+                    <Level>0</Level>
+                    <Task>12544</Task>
+                    <Opcode>0</Opcode>
+                    <Keywords>0x8010000000000000</Keywords>
+                    <TimeCreated SystemTime='{{DateTime.UtcNow:yyyy-MM-ddTHH:mm:ss.fffffffZ}}'/>
+                    <EventRecordID>884231</EventRecordID>
+                    <Correlation ActivityID='{00000000-0000-0000-0000-000000000000}'/>
+                    <Execution ProcessID='612' ThreadID='1832'/>
+                    <Channel>Security</Channel>
+                    <Computer>WORKSTATION-07.corp.local</Computer>
+                    <Security/>
+                  </System>
+                  <EventData>
+                    <Data Name='SubjectUserSid'>S-1-0-0</Data>
+                    <Data Name='SubjectUserName'>-</Data>
+                    <Data Name='SubjectDomainName'>-</Data>
+                    <Data Name='SubjectLogonId'>0x0</Data>
+                    <Data Name='TargetUserSid'>S-1-0-0</Data>
+                    <Data Name='TargetUserName'>admin</Data>
+                    <Data Name='TargetDomainName'>CORP</Data>
+                    <Data Name='Status'>0xC000006D</Data>
+                    <Data Name='FailureReason'>%%2313</Data>
+                    <Data Name='SubStatus'>0xC0000064</Data>
+                    <Data Name='LogonType'>10</Data>
+                    <Data Name='LogonProcessName'>User32</Data>
+                    <Data Name='AuthenticationPackageName'>Negotiate</Data>
+                    <Data Name='WorkstationName'>ATTACKER-PC</Data>
+                    <Data Name='TransmittedServices'>-</Data>
+                    <Data Name='LmPackageName'>-</Data>
+                    <Data Name='KeyLength'>0</Data>
+                    <Data Name='ProcessId'>0x0</Data>
+                    <Data Name='ProcessName'>-</Data>
+                    <Data Name='IpAddress'>203.0.113.50</Data>
+                    <Data Name='IpPort'>49823</Data>
+                  </EventData>
+                </Event>
+                """;
 
-            AddLogEntry("SIMULATE", $"Scenario selected: [{scenario.Name}]", false);
-            AddLogEntry("SIMULATE", scenario.Description, false);
+            AddLogEntry("SIMULATE",
+                "Fake event injected: Failed RDP logon for CORP\\admin from 203.0.113.50 (known malicious IP)", false);
 
-            // Run the full agentic pipeline on the generated payload
-            await AnalyzeLogWithAI(scenario.LogPayload);
+            // Run the full agentic pipeline on the simulated event
+            await AnalyzeLogWithAI(fakeEventXml);
         }
 
         // ==================================================================
