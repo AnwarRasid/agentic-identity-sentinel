@@ -42,7 +42,8 @@
         <SolidColorBrush x:Key="NeonRed"       Color="#FFFF003C"/>
         <SolidColorBrush x:Key="NeonAmber"     Color="#FFFFA500"/>
         <SolidColorBrush x:Key="TextDim"       Color="#FF8892B0"/>
-        <SolidColorBrush x:Key="BorderGlow"    Color="#FF39FF1444"/>
+        <SolidColorBrush x:Key="BorderGlow"    Color="#4439FF14"/>
+        <SolidColorBrush x:Key="NeonPurple"    Color="#FFB839FF"/>
 
         <!-- Neon button style -->
         <Style x:Key="NeonButton" TargetType="Button">
@@ -263,7 +264,7 @@
                     <TextBlock Text=" EDR"
                                FontSize="22" FontWeight="Light"
                                Foreground="{StaticResource NeonCyan}"/>
-                    <TextBlock Text="  //  Agentic Threat Detection"
+                    <TextBlock Text="  //  Active Defense Mode"
                                FontSize="12" FontWeight="Normal"
                                Foreground="{StaticResource TextDim}"
                                VerticalAlignment="Center"
@@ -467,6 +468,22 @@
                                    Text="0 IPs blocked"
                                    FontSize="11" FontWeight="SemiBold"
                                    Foreground="{StaticResource NeonAmber}"/>
+
+                        <!-- Separator -->
+                        <Border Height="1"
+                                Background="#FF2A2A4A"
+                                Margin="0,16,0,16"/>
+
+                        <!-- Red Team scenario display -->
+                        <TextBlock Text="RED TEAM"
+                                   FontSize="10" FontWeight="Bold"
+                                   Foreground="{StaticResource NeonPurple}"
+                                   Margin="0,0,0,6"/>
+                        <TextBlock x:Name="TxtScenarioName"
+                                   Text="No scenario run"
+                                   FontSize="10"
+                                   Foreground="{StaticResource TextDim}"
+                                   TextWrapping="Wrap"/>
                     </StackPanel>
                 </Grid>
             </Border>

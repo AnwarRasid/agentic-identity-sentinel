@@ -386,7 +386,7 @@ namespace SentinelEDR
                 if (isCritical && detectedIp != null)
                 {
                     _lastDetectedIp = detectedIp;
-                    Dispatcher.InvokeAsync(() =>
+                    _ = Dispatcher.InvokeAsync(() =>
                     {
                         TxtLastDetectedIp.Text = $"Flagged: {detectedIp}";
                         BtnBlockIp.IsEnabled = true;
@@ -408,7 +408,7 @@ namespace SentinelEDR
                         if (result.Success)
                         {
                             _blockedIpCount++;
-                            Dispatcher.InvokeAsync(() =>
+                            _ = Dispatcher.InvokeAsync(() =>
                                 TxtBlockedCount.Text = $"{_blockedIpCount} IP{(_blockedIpCount == 1 ? "" : "s")} blocked");
                         }
                     }
@@ -610,70 +610,27 @@ namespace SentinelEDR
         }
 
         // ==================================================================
-        //  ATTACK SIMULATOR — injects a fake Event 4625 for testing
+        //  RED TEAM SIMULATOR — polymorphic attack scenario injection
         // ==================================================================
 
         /// <summary>
-        /// Generates a realistic-looking (but fake) Windows Security Event
-        /// 4625 XML payload and runs it through the agentic AI pipeline.
-        /// This lets you test the full agent loop without needing to actually
-        /// trigger a failed logon on the machine.
+        /// Uses the Polymorphic Red Team Engine to generate a random
+        /// attack scenario and feeds it into the Agentic AI pipeline.
+        /// Each press produces a different scenario (brute force,
+        /// impossible travel, PowerShell attack, or false positive).
         /// </summary>
         private async Task SimulateAttackAsync()
         {
-            AddLogEntry("SIMULATE", "Injecting simulated failed-logon event (Event 4625)...", false);
+            var (scenarioName, eventXml) = RedTeamSimulator.GenerateAttackScenario();
 
-            // Realistic Event 4625 XML — this mirrors the actual schema that
-            // Windows writes to the Security log on a failed logon attempt.
-            string fakeEventXml = $$"""
-                <Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'>
-                  <System>
-                    <Provider Name='Microsoft-Windows-Security-Auditing' Guid='{54849625-5478-4994-A5BA-3E3B0328C30D}'/>
-                    <EventID>4625</EventID>
-                    <Version>0</Version>
-                    <Level>0</Level>
-                    <Task>12544</Task>
-                    <Opcode>0</Opcode>
-                    <Keywords>0x8010000000000000</Keywords>
-                    <TimeCreated SystemTime='{{DateTime.UtcNow:yyyy-MM-ddTHH:mm:ss.fffffffZ}}'/>
-                    <EventRecordID>884231</EventRecordID>
-                    <Correlation ActivityID='{00000000-0000-0000-0000-000000000000}'/>
-                    <Execution ProcessID='612' ThreadID='1832'/>
-                    <Channel>Security</Channel>
-                    <Computer>WORKSTATION-07.corp.local</Computer>
-                    <Security/>
-                  </System>
-                  <EventData>
-                    <Data Name='SubjectUserSid'>S-1-0-0</Data>
-                    <Data Name='SubjectUserName'>-</Data>
-                    <Data Name='SubjectDomainName'>-</Data>
-                    <Data Name='SubjectLogonId'>0x0</Data>
-                    <Data Name='TargetUserSid'>S-1-0-0</Data>
-                    <Data Name='TargetUserName'>admin</Data>
-                    <Data Name='TargetDomainName'>CORP</Data>
-                    <Data Name='Status'>0xC000006D</Data>
-                    <Data Name='FailureReason'>%%2313</Data>
-                    <Data Name='SubStatus'>0xC0000064</Data>
-                    <Data Name='LogonType'>10</Data>
-                    <Data Name='LogonProcessName'>User32</Data>
-                    <Data Name='AuthenticationPackageName'>Negotiate</Data>
-                    <Data Name='WorkstationName'>ATTACKER-PC</Data>
-                    <Data Name='TransmittedServices'>-</Data>
-                    <Data Name='LmPackageName'>-</Data>
-                    <Data Name='KeyLength'>0</Data>
-                    <Data Name='ProcessId'>0x0</Data>
-                    <Data Name='ProcessName'>-</Data>
-                    <Data Name='IpAddress'>203.0.113.50</Data>
-                    <Data Name='IpPort'>49823</Data>
-                  </EventData>
-                </Event>
-                """;
+            AddLogEntry("RED-TEAM", $"Scenario: {scenarioName}", false);
+            AddLogEntry("SIMULATE", "Injecting polymorphic event into AI pipeline...", false);
 
-            AddLogEntry("SIMULATE",
-                "Fake event injected: Failed RDP logon for CORP\\admin from 203.0.113.50 (known malicious IP)", false);
+            // Update the sidebar scenario display
+            _ = Dispatcher.InvokeAsync(() => TxtScenarioName.Text = scenarioName);
 
-            // Run the full agentic pipeline on the simulated event
-            await AnalyzeLogWithAI(fakeEventXml);
+            // Run the full agentic pipeline on the generated event
+            await AnalyzeLogWithAI(eventXml);
         }
 
         // ==================================================================
