@@ -26,6 +26,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.Eventing.Reader;
 using System.Globalization;
 using System.Linq;
@@ -503,6 +504,17 @@ namespace SentinelEDR
                             _blockedIpCount++;
                             Dispatcher.InvokeAsync(() =>
                                 TxtBlockedCount.Text = $"{_blockedIpCount} IP{(_blockedIpCount == 1 ? "" : "s")} blocked");
+
+                            // ── MODULE 4: Automated Forensics Report ──────
+                            string reportPath = ForensicsReporter.GenerateHtmlReport(
+                                detectedIp,
+                                "Brute Force (Event 4625)",
+                                Truncate(turn2Response, 500),
+                                result.Message);
+
+                            string reportFileName = System.IO.Path.GetFileName(reportPath);
+                            AddLogEntry("FORENSICS",
+                                $"REPORT GENERATED: {reportFileName} → {reportPath}", false);
                         }
                     }
                 }
@@ -1048,6 +1060,23 @@ namespace SentinelEDR
             // Update the score display and stop the countdown
             Dispatcher.InvokeAsync(() => TxtScore.Text = _score.ToString());
             StopGamificationCountdown();
+        }
+
+        // ==================================================================
+        //  FORENSICS — open the incident reports folder in Explorer
+        // ==================================================================
+
+        private void OpenReportsFolder_Click(object sender, RoutedEventArgs e)
+        {
+            string reportsPath = Path.GetFullPath("IncidentReports");
+
+            if (!Directory.Exists(reportsPath))
+            {
+                Directory.CreateDirectory(reportsPath);
+                AddLogEntry("FORENSICS", "Reports folder created (no reports yet).", false);
+            }
+
+            Process.Start("explorer.exe", reportsPath);
         }
 
         // ==================================================================
