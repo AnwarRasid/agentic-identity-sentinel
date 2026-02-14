@@ -52,11 +52,11 @@ namespace SentinelEDR
         private const string API_KEY = "YOUR_KEY_HERE";
 
         /// <summary>
-        /// Gemini 2.0 Flash endpoint.  The :generateContent suffix and key
-        /// are appended at call time.
+        /// Gemini Flash (latest) endpoint.  The :generateContent suffix and
+        /// key are appended at call time.
         /// </summary>
         private const string GEMINI_ENDPOINT =
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash";
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest";
 
         /// <summary>
         /// XPath query that selects only Event ID 4625 (Failed Logon) from
@@ -91,6 +91,15 @@ namespace SentinelEDR
 
         /// <summary>Tracks whether a CRITICAL alert has been raised.</summary>
         private bool _isCompromised;
+
+        /// <summary>Whether Active Defense auto-eradicate mode is enabled.</summary>
+        private bool _autoEradicateEnabled;
+
+        /// <summary>Last IP address flagged by the AI agent (for manual blocking).</summary>
+        private string? _lastDetectedIp;
+
+        /// <summary>Running count of IPs blocked by the Response Engine.</summary>
+        private int _blockedIpCount;
 
         // ==================================================================
         //  CONSTRUCTOR
@@ -343,6 +352,9 @@ namespace SentinelEDR
                 AddLogEntry("AI-AGENT",
                     $"ACT: Gemini requested tool '{toolCall.Value.Tool}' with arg '{toolCall.Value.Arg}'", false);
 
+                // Capture IP address for Active Defense countermeasures
+                string? detectedIp = toolCall.Value.Tool == "check_ip" ? toolCall.Value.Arg : null;
+
                 // Execute the local mock tool
                 string toolResult = toolCall.Value.Tool switch
                 {
@@ -369,6 +381,38 @@ namespace SentinelEDR
                         ? "Agentic AI has flagged this event as a CRITICAL threat."
                         : "Agentic AI has determined this event is SAFE.",
                     isCritical);
+
+                // ── Active Defense: auto-eradicate if CRITICAL + toggle ON ──
+                if (isCritical && detectedIp != null)
+                {
+                    _lastDetectedIp = detectedIp;
+                    Dispatcher.InvokeAsync(() =>
+                    {
+                        TxtLastDetectedIp.Text = $"Flagged: {detectedIp}";
+                        BtnBlockIp.IsEnabled = true;
+                    });
+
+                    if (_autoEradicateEnabled)
+                    {
+                        AddLogEntry("ERADICATE",
+                            $"Auto-Eradicate engaged — blocking IP {detectedIp} in Windows Firewall...", false);
+
+                        var result = ResponseEngine.BlockIpInFirewall(detectedIp);
+
+                        AddLogEntry(result.Success ? "ERADICATE" : "ERROR",
+                            result.Success
+                                ? $"THREAT NEUTRALIZED: IP {detectedIp} blocked. {result.Message}"
+                                : $"Firewall block failed: {result.Message}",
+                            false);
+
+                        if (result.Success)
+                        {
+                            _blockedIpCount++;
+                            Dispatcher.InvokeAsync(() =>
+                                TxtBlockedCount.Text = $"{_blockedIpCount} IP{(_blockedIpCount == 1 ? "" : "s")} blocked");
+                        }
+                    }
+                }
             }
             else
             {
@@ -581,19 +625,19 @@ namespace SentinelEDR
 
             // Realistic Event 4625 XML — this mirrors the actual schema that
             // Windows writes to the Security log on a failed logon attempt.
-            string fakeEventXml = $"""
+            string fakeEventXml = $$"""
                 <Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'>
                   <System>
-                    <Provider Name='Microsoft-Windows-Security-Auditing' Guid='{{54849625-5478-4994-A5BA-3E3B0328C30D}}'/>
+                    <Provider Name='Microsoft-Windows-Security-Auditing' Guid='{54849625-5478-4994-A5BA-3E3B0328C30D}'/>
                     <EventID>4625</EventID>
                     <Version>0</Version>
                     <Level>0</Level>
                     <Task>12544</Task>
                     <Opcode>0</Opcode>
                     <Keywords>0x8010000000000000</Keywords>
-                    <TimeCreated SystemTime='{DateTime.UtcNow:yyyy-MM-ddTHH:mm:ss.fffffffZ}'/>
+                    <TimeCreated SystemTime='{{DateTime.UtcNow:yyyy-MM-ddTHH:mm:ss.fffffffZ}}'/>
                     <EventRecordID>884231</EventRecordID>
-                    <Correlation ActivityID='{{00000000-0000-0000-0000-000000000000}}'/>
+                    <Correlation ActivityID='{00000000-0000-0000-0000-000000000000}'/>
                     <Execution ProcessID='612' ThreadID='1832'/>
                     <Channel>Security</Channel>
                     <Computer>WORKSTATION-07.corp.local</Computer>
@@ -663,6 +707,49 @@ namespace SentinelEDR
             _eventCount = 0;
             EventCountText.Text = "0 events";
             SetSecureStatus();
+        }
+
+        // ==================================================================
+        //  COUNTERMEASURE HANDLERS — Active Defense sidebar controls
+        // ==================================================================
+
+        /// <summary>Toggle the Auto-Eradicate mode on/off.</summary>
+        private void ChkAutoEradicate_Changed(object sender, RoutedEventArgs e)
+        {
+            _autoEradicateEnabled = ChkAutoEradicate.IsChecked == true;
+            AddLogEntry("CONFIG",
+                _autoEradicateEnabled
+                    ? "Active Defense: Auto-Eradicate mode ENABLED. CRITICAL threats will be blocked automatically."
+                    : "Active Defense: Auto-Eradicate mode DISABLED.",
+                false);
+        }
+
+        /// <summary>Manually block the last flagged IP via the Response Engine.</summary>
+        private void BtnBlockIp_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(_lastDetectedIp))
+            {
+                AddLogEntry("WARN", "No IP address available to block.", false);
+                return;
+            }
+
+            AddLogEntry("ERADICATE",
+                $"Manual block initiated for IP {_lastDetectedIp}...", false);
+
+            var result = ResponseEngine.BlockIpInFirewall(_lastDetectedIp);
+
+            AddLogEntry(result.Success ? "ERADICATE" : "ERROR",
+                result.Success
+                    ? $"THREAT NEUTRALIZED: IP {_lastDetectedIp} blocked. {result.Message}"
+                    : $"Firewall block failed: {result.Message}",
+                false);
+
+            if (result.Success)
+            {
+                _blockedIpCount++;
+                TxtBlockedCount.Text = $"{_blockedIpCount} IP{(_blockedIpCount == 1 ? "" : "s")} blocked";
+                BtnBlockIp.IsEnabled = false;
+            }
         }
 
         // ==================================================================
