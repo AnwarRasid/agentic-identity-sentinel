@@ -36,6 +36,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
+using System.Windows.Threading;
 
 namespace SentinelEDR
 {
@@ -102,12 +103,67 @@ namespace SentinelEDR
         private int _blockedIpCount;
 
         // ==================================================================
+        //  MODULE 2 — NETWORK MAP (God's Eye View)
+        // ==================================================================
+
+        /// <summary>
+        /// Reference to the floating Network Map window.  Nullable because
+        /// the user may not have opened it yet.
+        /// </summary>
+        private NetworkMapWindow? _networkMapWindow;
+
+        // ==================================================================
+        //  MODULE 3 — WAR ROOM (Gamification Engine)
+        // ==================================================================
+
+        /// <summary>Whether gamified mode is currently active.</summary>
+        private bool _gamifiedModeEnabled;
+
+        /// <summary>Current player score.  Can go negative.</summary>
+        private int _score;
+
+        /// <summary>
+        /// Timestamp (UTC) when the current threat was first detected.
+        /// Used to calculate if the user responded within 10 seconds.
+        /// </summary>
+        private DateTime? _threatDetectedAt;
+
+        /// <summary>
+        /// The IP that the gamification timer is counting down for.
+        /// Null when no active threat is pending user action.
+        /// </summary>
+        private string? _pendingThreatIp;
+
+        /// <summary>
+        /// Whether the pending threat IP is actually malicious (for
+        /// scoring the user's block action correctly).
+        /// </summary>
+        private bool _pendingThreatIsMalicious;
+
+        /// <summary>
+        /// 10-second countdown timer that ticks every second.
+        /// Uses DispatcherTimer so callbacks run on the UI thread.
+        /// </summary>
+        private DispatcherTimer? _gamificationTimer;
+
+        /// <summary>Seconds remaining on the current threat countdown.</summary>
+        private int _countdownSeconds;
+
+        // ==================================================================
         //  CONSTRUCTOR
         // ==================================================================
 
         public MainWindow()
         {
             InitializeComponent();
+
+            // Initialise the gamification countdown timer (Module 3)
+            _gamificationTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(1)
+            };
+            _gamificationTimer.Tick += GamificationTimer_Tick;
+
             AddLogEntry("SYSTEM", "Sentinel EDR initialised. Ready to monitor.", false);
             AddLogEntry("INFO", "Press 'Start Monitoring' to subscribe to Security Event 4625 (Failed Logon).", false);
             AddLogEntry("INFO", "Press 'Simulate Attack' to inject a fake failed-logon event for AI analysis.", false);
@@ -364,6 +420,16 @@ namespace SentinelEDR
 
                 AddLogEntry("AI-AGENT", $"TOOL RESULT: {toolResult}", false);
 
+                // ── MODULE 1: Query Threat Intel for Abuse Confidence ────
+                // This runs in parallel with the Gemini Turn 2 call for
+                // efficiency — we await it after the verdict arrives.
+                int threatIntelScore = 0;
+                Task<int>? threatIntelTask = null;
+                if (detectedIp != null)
+                {
+                    threatIntelTask = ThreatIntelService.GetAbuseConfidenceScore(detectedIp);
+                }
+
                 // ── Turn 2: Send tool result back for final verdict ─────
                 string turn2Prompt =
                     $"You previously requested the check_ip tool for the log entry below.\n" +
@@ -373,14 +439,35 @@ namespace SentinelEDR
 
                 string turn2Response = await CallGeminiAsync(AgentSystemPrompt, turn2Prompt);
 
+                // Await the Threat Intel result (Module 1)
+                if (threatIntelTask != null)
+                {
+                    threatIntelScore = await threatIntelTask;
+                    AddLogEntry("THREAT-INTEL",
+                        $"AbuseIPDB Confidence Score for {detectedIp}: {threatIntelScore}/100" +
+                        (threatIntelScore >= 76 ? " — HIGH RISK" :
+                         threatIntelScore >= 26 ? " — SUSPICIOUS" : " — LOW RISK"), false);
+                }
+
                 AddLogEntry("AI-AGENT", $"DECIDE: {Truncate(turn2Response, 300)}", false);
 
                 bool isCritical = turn2Response.Contains("CRITICAL", StringComparison.OrdinalIgnoreCase);
+                bool isMaliciousPerThreatIntel = threatIntelScore >= 76;
+
                 AddLogEntry(isCritical ? "CRITICAL" : "SAFE",
                     isCritical
                         ? "Agentic AI has flagged this event as a CRITICAL threat."
                         : "Agentic AI has determined this event is SAFE.",
                     isCritical);
+
+                // ── MODULE 2: Update Network Map (God's Eye View) ────────
+                if (detectedIp != null)
+                {
+                    Dispatcher.InvokeAsync(() =>
+                    {
+                        _networkMapWindow?.AddNode(detectedIp, isMaliciousPerThreatIntel);
+                    });
+                }
 
                 // ── Active Defense: auto-eradicate if CRITICAL + toggle ON ──
                 if (isCritical && detectedIp != null)
@@ -391,6 +478,12 @@ namespace SentinelEDR
                         TxtLastDetectedIp.Text = $"Flagged: {detectedIp}";
                         BtnBlockIp.IsEnabled = true;
                     });
+
+                    // ── MODULE 3: Start gamification countdown timer ─────
+                    if (_gamifiedModeEnabled)
+                    {
+                        StartGamificationCountdown(detectedIp, isMaliciousPerThreatIntel);
+                    }
 
                     if (_autoEradicateEnabled)
                     {
@@ -732,13 +825,24 @@ namespace SentinelEDR
                 false);
         }
 
-        /// <summary>Manually block the last flagged IP via the Response Engine.</summary>
+        /// <summary>
+        /// Manually block the last flagged IP via the Response Engine.
+        /// Integrates with the War Room scoring system (Module 3):
+        ///   +1000 points — blocking a malicious IP within 10 seconds
+        ///   -500 points  — blocking a safe IP (false positive penalty)
+        /// </summary>
         private void BtnBlockIp_Click(object sender, RoutedEventArgs e)
         {
             if (string.IsNullOrEmpty(_lastDetectedIp))
             {
                 AddLogEntry("WARN", "No IP address available to block.", false);
                 return;
+            }
+
+            // ── MODULE 3: Score the player's block action ────────────
+            if (_gamifiedModeEnabled)
+            {
+                ScoreBlockAction(_lastDetectedIp);
             }
 
             AddLogEntry("ERADICATE",
@@ -761,12 +865,200 @@ namespace SentinelEDR
         }
 
         // ==================================================================
+        //  MODULE 2 — NETWORK MAP HANDLER
+        // ==================================================================
+
+        /// <summary>
+        /// Opens (or brings to front) the floating Network Map window.
+        /// Uses a singleton pattern — only one map window can exist.
+        /// </summary>
+        private void BtnNetworkMap_Click(object sender, RoutedEventArgs e)
+        {
+            if (_networkMapWindow == null || !_networkMapWindow.IsLoaded)
+            {
+                _networkMapWindow = new NetworkMapWindow
+                {
+                    Owner = this
+                };
+                _networkMapWindow.Closed += (_, _) => _networkMapWindow = null;
+                _networkMapWindow.Show();
+                AddLogEntry("MAP", "Network Map window opened — God's Eye View active.", false);
+            }
+            else
+            {
+                // Window already exists — bring it to front
+                _networkMapWindow.Activate();
+            }
+        }
+
+        // ==================================================================
+        //  MODULE 3 — WAR ROOM (Gamification Engine)
+        // ==================================================================
+        //
+        //  SCORING RULES
+        //  ─────────────
+        //  +1000 points : User manually blocks a MALICIOUS IP within 10s
+        //  -500  points : User blocks a SAFE IP (false positive penalty)
+        //  -200  points : 10-second countdown expires without user action
+        //
+        //  The timer uses System.Windows.Threading.DispatcherTimer so all
+        //  Tick callbacks execute on the WPF UI thread — no Dispatcher
+        //  marshalling needed inside the handler.
+        //
+        // ==================================================================
+
+        /// <summary>Toggle gamified mode on/off from the sidebar checkbox.</summary>
+        private void ChkGamifiedMode_Changed(object sender, RoutedEventArgs e)
+        {
+            _gamifiedModeEnabled = ChkGamifiedMode.IsChecked == true;
+
+            if (_gamifiedModeEnabled)
+            {
+                _score = 0;
+                TxtScore.Text = "0";
+                TxtCountdown.Text = "--";
+                AddLogEntry("WAR-ROOM",
+                    "Gamified Mode ENABLED. Score reset to 0. Block threats fast for points!", false);
+            }
+            else
+            {
+                StopGamificationCountdown();
+                AddLogEntry("WAR-ROOM",
+                    $"Gamified Mode DISABLED. Final score: {_score}.", false);
+            }
+        }
+
+        /// <summary>
+        /// Starts a 10-second countdown for the user to respond to a
+        /// detected threat.  Called from AnalyzeLogWithAI when a CRITICAL
+        /// verdict is issued and gamified mode is active.
+        /// </summary>
+        private void StartGamificationCountdown(string ip, bool isMalicious)
+        {
+            Dispatcher.InvokeAsync(() =>
+            {
+                // If a countdown is already running, let it expire naturally
+                // (don't reset for overlapping threats)
+                if (_pendingThreatIp != null) return;
+
+                _pendingThreatIp = ip;
+                _pendingThreatIsMalicious = isMalicious;
+                _threatDetectedAt = DateTime.UtcNow;
+                _countdownSeconds = 10;
+
+                TxtCountdown.Text = "10s";
+                TxtCountdown.Foreground = (SolidColorBrush)FindResource("NeonGreen");
+
+                AddLogEntry("WAR-ROOM",
+                    $"THREAT DETECTED: {ip} — You have 10 seconds to respond! Block or ignore.", false);
+
+                _gamificationTimer?.Start();
+            });
+        }
+
+        /// <summary>
+        /// Fires every second while the gamification countdown is active.
+        /// Updates the UI countdown display and handles timer expiry.
+        /// </summary>
+        private void GamificationTimer_Tick(object? sender, EventArgs e)
+        {
+            _countdownSeconds--;
+
+            if (_countdownSeconds <= 0)
+            {
+                // Time expired — the user didn't act in time
+                _score -= 200;
+                TxtScore.Text = _score.ToString();
+                TxtCountdown.Text = "EXPIRED";
+                TxtCountdown.Foreground = (SolidColorBrush)FindResource("NeonRed");
+
+                AddLogEntry("WAR-ROOM",
+                    $"-200 POINTS: Timer expired for {_pendingThreatIp}. Total score: {_score}", false);
+
+                StopGamificationCountdown();
+            }
+            else
+            {
+                // Update the countdown display
+                TxtCountdown.Text = $"{_countdownSeconds}s";
+
+                // Colour transitions: green → amber → red
+                if (_countdownSeconds <= 3)
+                    TxtCountdown.Foreground = (SolidColorBrush)FindResource("NeonRed");
+                else if (_countdownSeconds <= 6)
+                    TxtCountdown.Foreground = (SolidColorBrush)FindResource("NeonAmber");
+            }
+        }
+
+        /// <summary>
+        /// Stops the gamification timer and clears the pending threat.
+        /// </summary>
+        private void StopGamificationCountdown()
+        {
+            _gamificationTimer?.Stop();
+            _pendingThreatIp = null;
+            _threatDetectedAt = null;
+            _pendingThreatIsMalicious = false;
+
+            Dispatcher.InvokeAsync(() => TxtCountdown.Text = "--");
+        }
+
+        /// <summary>
+        /// Calculates and applies the score delta when the user clicks
+        /// "Block Selected IP".  Called from BtnBlockIp_Click.
+        ///
+        /// Scoring logic:
+        ///   • If the blocked IP matches the pending threat AND is truly
+        ///     malicious AND the user acted within 10 seconds → +1000
+        ///   • If the blocked IP is safe → -500 (false positive penalty)
+        /// </summary>
+        private void ScoreBlockAction(string blockedIp)
+        {
+            bool respondedToActiveThreat = _pendingThreatIp == blockedIp
+                                           && _threatDetectedAt != null
+                                           && (DateTime.UtcNow - _threatDetectedAt.Value).TotalSeconds <= 10;
+
+            if (_pendingThreatIsMalicious && respondedToActiveThreat)
+            {
+                // Correct block of a malicious IP within time limit
+                _score += 1000;
+                AddLogEntry("WAR-ROOM",
+                    $"+1000 POINTS: Malicious IP {blockedIp} blocked in time! Total score: {_score}", false);
+            }
+            else if (!_pendingThreatIsMalicious || !respondedToActiveThreat)
+            {
+                // Determine if this is a safe-IP block (penalty) or a late block
+                // Check if the IP is actually in the known malicious list
+                bool isTrulyMalicious = _pendingThreatIp == blockedIp && _pendingThreatIsMalicious;
+
+                if (!isTrulyMalicious)
+                {
+                    _score -= 500;
+                    AddLogEntry("WAR-ROOM",
+                        $"-500 POINTS: Blocked a safe IP ({blockedIp})! False positive penalty. Total score: {_score}", false);
+                }
+                else
+                {
+                    // Late but correct — no bonus, but no penalty either
+                    AddLogEntry("WAR-ROOM",
+                        $"0 POINTS: Correct block but too slow. No bonus. Total score: {_score}", false);
+                }
+            }
+
+            // Update the score display and stop the countdown
+            Dispatcher.InvokeAsync(() => TxtScore.Text = _score.ToString());
+            StopGamificationCountdown();
+        }
+
+        // ==================================================================
         //  CLEANUP — release the kernel subscription handle on exit
         // ==================================================================
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             StopMonitoring();
+            _gamificationTimer?.Stop();
+            _networkMapWindow?.Close();
             _httpClient.Dispose();
         }
 

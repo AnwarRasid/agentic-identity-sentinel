@@ -467,6 +467,63 @@
                                    Text="0 IPs blocked"
                                    FontSize="11" FontWeight="SemiBold"
                                    Foreground="{StaticResource NeonAmber}"/>
+
+                        <!-- ══════════════════════════════════════════
+                             WAR ROOM — Gamification Panel (Module 3)
+                             ══════════════════════════════════════════ -->
+
+                        <!-- Separator -->
+                        <Border Height="1"
+                                Background="#FF2A2A4A"
+                                Margin="0,16,0,16"/>
+
+                        <TextBlock Text="WAR ROOM"
+                                   FontSize="10" FontWeight="Bold"
+                                   Foreground="{StaticResource NeonCyan}"
+                                   Margin="0,0,0,8"/>
+
+                        <!-- Gamified Mode toggle -->
+                        <CheckBox x:Name="ChkGamifiedMode"
+                                  Content="Gamified Mode"
+                                  Style="{StaticResource NeonToggle}"
+                                  Checked="ChkGamifiedMode_Changed"
+                                  Unchecked="ChkGamifiedMode_Changed"
+                                  Margin="0,0,0,10"/>
+
+                        <!-- Score display -->
+                        <TextBlock Text="SCORE"
+                                   FontSize="9" FontWeight="Bold"
+                                   Foreground="{StaticResource TextDim}"
+                                   Margin="0,0,0,2"/>
+                        <TextBlock x:Name="TxtScore"
+                                   Text="0"
+                                   FontSize="22" FontWeight="Bold"
+                                   Foreground="{StaticResource NeonCyan}"
+                                   Margin="0,0,0,8"/>
+
+                        <!-- Countdown timer display -->
+                        <TextBlock Text="THREAT TIMER"
+                                   FontSize="9" FontWeight="Bold"
+                                   Foreground="{StaticResource TextDim}"
+                                   Margin="0,0,0,2"/>
+                        <TextBlock x:Name="TxtCountdown"
+                                   Text="--"
+                                   FontSize="16" FontWeight="SemiBold"
+                                   Foreground="{StaticResource NeonGreen}"
+                                   Margin="0,0,0,10"/>
+
+                        <!-- Separator -->
+                        <Border Height="1"
+                                Background="#FF2A2A4A"
+                                Margin="0,0,0,12"/>
+
+                        <!-- Network Map button -->
+                        <Button x:Name="BtnNetworkMap"
+                                Content="Open Network Map"
+                                Style="{StaticResource NeonButtonCyan}"
+                                Click="BtnNetworkMap_Click"
+                                Padding="12,10"/>
+
                     </StackPanel>
                 </Grid>
             </Border>
