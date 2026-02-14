@@ -278,19 +278,19 @@ namespace SentinelEDR
             string workstation, DateTime timestamp, int recordId)
         {
             int port = _rng.Next(49152, 65535);
-            return $"""
+            return $$"""
                 <Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'>
                   <System>
-                    <Provider Name='Microsoft-Windows-Security-Auditing' Guid='{{54849625-5478-4994-A5BA-3E3B0328C30D}}'/>
+                    <Provider Name='Microsoft-Windows-Security-Auditing' Guid='{54849625-5478-4994-A5BA-3E3B0328C30D}'/>
                     <EventID>4625</EventID>
                     <Version>0</Version>
                     <Level>0</Level>
                     <Task>12544</Task>
                     <Opcode>0</Opcode>
                     <Keywords>0x8010000000000000</Keywords>
-                    <TimeCreated SystemTime='{timestamp:yyyy-MM-ddTHH:mm:ss.fffffffZ}'/>
-                    <EventRecordID>{recordId}</EventRecordID>
-                    <Correlation ActivityID='{{00000000-0000-0000-0000-000000000000}}'/>
+                    <TimeCreated SystemTime='{{timestamp:yyyy-MM-ddTHH:mm:ss.fffffffZ}}'/>
+                    <EventRecordID>{{recordId}}</EventRecordID>
+                    <Correlation ActivityID='{00000000-0000-0000-0000-000000000000}'/>
                     <Execution ProcessID='612' ThreadID='1832'/>
                     <Channel>Security</Channel>
                     <Computer>WORKSTATION-07.corp.local</Computer>
@@ -302,22 +302,22 @@ namespace SentinelEDR
                     <Data Name='SubjectDomainName'>-</Data>
                     <Data Name='SubjectLogonId'>0x0</Data>
                     <Data Name='TargetUserSid'>S-1-0-0</Data>
-                    <Data Name='TargetUserName'>{user}</Data>
-                    <Data Name='TargetDomainName'>{domain}</Data>
+                    <Data Name='TargetUserName'>{{user}}</Data>
+                    <Data Name='TargetDomainName'>{{domain}}</Data>
                     <Data Name='Status'>0xC000006D</Data>
                     <Data Name='FailureReason'>%%2313</Data>
                     <Data Name='SubStatus'>0xC0000064</Data>
                     <Data Name='LogonType'>10</Data>
                     <Data Name='LogonProcessName'>User32</Data>
                     <Data Name='AuthenticationPackageName'>Negotiate</Data>
-                    <Data Name='WorkstationName'>{workstation}</Data>
+                    <Data Name='WorkstationName'>{{workstation}}</Data>
                     <Data Name='TransmittedServices'>-</Data>
                     <Data Name='LmPackageName'>-</Data>
                     <Data Name='KeyLength'>0</Data>
                     <Data Name='ProcessId'>0x0</Data>
                     <Data Name='ProcessName'>-</Data>
-                    <Data Name='IpAddress'>{ip}</Data>
-                    <Data Name='IpPort'>{port}</Data>
+                    <Data Name='IpAddress'>{{ip}}</Data>
+                    <Data Name='IpPort'>{{port}}</Data>
                   </EventData>
                 </Event>
                 """;
@@ -329,19 +329,19 @@ namespace SentinelEDR
         {
             int port     = _rng.Next(49152, 65535);
             int recordId = _rng.Next(880000, 890000);
-            return $"""
+            return $$"""
                 <Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'>
                   <System>
-                    <Provider Name='Microsoft-Windows-Security-Auditing' Guid='{{54849625-5478-4994-A5BA-3E3B0328C30D}}'/>
+                    <Provider Name='Microsoft-Windows-Security-Auditing' Guid='{54849625-5478-4994-A5BA-3E3B0328C30D}'/>
                     <EventID>4624</EventID>
                     <Version>2</Version>
                     <Level>0</Level>
                     <Task>12544</Task>
                     <Opcode>0</Opcode>
                     <Keywords>0x8020000000000000</Keywords>
-                    <TimeCreated SystemTime='{timestamp:yyyy-MM-ddTHH:mm:ss.fffffffZ}'/>
-                    <EventRecordID>{recordId}</EventRecordID>
-                    <Correlation ActivityID='{{00000000-0000-0000-0000-000000000000}}'/>
+                    <TimeCreated SystemTime='{{timestamp:yyyy-MM-ddTHH:mm:ss.fffffffZ}}'/>
+                    <EventRecordID>{{recordId}}</EventRecordID>
+                    <Correlation ActivityID='{00000000-0000-0000-0000-000000000000}'/>
                     <Execution ProcessID='612' ThreadID='1832'/>
                     <Channel>Security</Channel>
                     <Computer>WORKSTATION-07.corp.local</Computer>
@@ -353,20 +353,20 @@ namespace SentinelEDR
                     <Data Name='SubjectDomainName'>CORP</Data>
                     <Data Name='SubjectLogonId'>0x3E7</Data>
                     <Data Name='TargetUserSid'>S-1-5-21-0000000000-0000000000-0000000000-1001</Data>
-                    <Data Name='TargetUserName'>{user}</Data>
-                    <Data Name='TargetDomainName'>{domain}</Data>
+                    <Data Name='TargetUserName'>{{user}}</Data>
+                    <Data Name='TargetDomainName'>{{domain}}</Data>
                     <Data Name='LogonType'>10</Data>
                     <Data Name='LogonProcessName'>User32</Data>
                     <Data Name='AuthenticationPackageName'>Negotiate</Data>
                     <Data Name='WorkstationName'>WORKSTATION-07</Data>
-                    <Data Name='LogonGuid'>{{00000000-0000-0000-0000-000000000000}}</Data>
+                    <Data Name='LogonGuid'>{00000000-0000-0000-0000-000000000000}</Data>
                     <Data Name='TransmittedServices'>-</Data>
                     <Data Name='LmPackageName'>-</Data>
                     <Data Name='KeyLength'>0</Data>
                     <Data Name='ProcessId'>0x0</Data>
                     <Data Name='ProcessName'>-</Data>
-                    <Data Name='IpAddress'>{ip}</Data>
-                    <Data Name='IpPort'>{port}</Data>
+                    <Data Name='IpAddress'>{{ip}}</Data>
+                    <Data Name='IpPort'>{{port}}</Data>
                   </EventData>
                 </Event>
                 """;
@@ -380,19 +380,19 @@ namespace SentinelEDR
             string user, string domain, string encodedCmd)
         {
             int recordId = _rng.Next(880000, 890000);
-            return $"""
+            return $$"""
                 <Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'>
                   <System>
-                    <Provider Name='Microsoft-Windows-Security-Auditing' Guid='{{54849625-5478-4994-A5BA-3E3B0328C30D}}'/>
+                    <Provider Name='Microsoft-Windows-Security-Auditing' Guid='{54849625-5478-4994-A5BA-3E3B0328C30D}'/>
                     <EventID>4688</EventID>
                     <Version>2</Version>
                     <Level>0</Level>
                     <Task>13312</Task>
                     <Opcode>0</Opcode>
                     <Keywords>0x8020000000000000</Keywords>
-                    <TimeCreated SystemTime='{DateTime.UtcNow:yyyy-MM-ddTHH:mm:ss.fffffffZ}'/>
-                    <EventRecordID>{recordId}</EventRecordID>
-                    <Correlation ActivityID='{{00000000-0000-0000-0000-000000000000}}'/>
+                    <TimeCreated SystemTime='{{DateTime.UtcNow:yyyy-MM-ddTHH:mm:ss.fffffffZ}}'/>
+                    <EventRecordID>{{recordId}}</EventRecordID>
+                    <Correlation ActivityID='{00000000-0000-0000-0000-000000000000}'/>
                     <Execution ProcessID='4' ThreadID='88'/>
                     <Channel>Security</Channel>
                     <Computer>WORKSTATION-07.corp.local</Computer>
@@ -400,14 +400,14 @@ namespace SentinelEDR
                   </System>
                   <EventData>
                     <Data Name='SubjectUserSid'>S-1-5-21-0000000000-0000000000-0000000000-1001</Data>
-                    <Data Name='SubjectUserName'>{user}</Data>
-                    <Data Name='SubjectDomainName'>{domain}</Data>
+                    <Data Name='SubjectUserName'>{{user}}</Data>
+                    <Data Name='SubjectDomainName'>{{domain}}</Data>
                     <Data Name='SubjectLogonId'>0x3E7</Data>
                     <Data Name='NewProcessId'>0x1A2C</Data>
                     <Data Name='NewProcessName'>C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe</Data>
                     <Data Name='TokenElevationType'>%%1937</Data>
                     <Data Name='ProcessId'>0x0FC8</Data>
-                    <Data Name='CommandLine'>powershell.exe -NoProfile -WindowStyle Hidden -enc {encodedCmd}</Data>
+                    <Data Name='CommandLine'>powershell.exe -NoProfile -WindowStyle Hidden -enc {{encodedCmd}}</Data>
                     <Data Name='TargetUserSid'>S-1-0-0</Data>
                     <Data Name='TargetUserName'>-</Data>
                     <Data Name='TargetDomainName'>-</Data>
